@@ -1,2 +1,2 @@
-# DatingWeb-test
-This repo is just a place to stash work-in-progress projects. Things here are incomplete and might change anytime.
+# 交友網站開發-測試
+這個儲存庫只是用來暫存尚未完成的作品。內容尚未完善，可能隨時會變動。
