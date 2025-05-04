@@ -1,117 +1,128 @@
 <template>
-  <div class="max-w-lg mx-auto mt-10 p-6 bg-white rounded-2xl shadow-lg">
-    <h1 class="text-3xl font-semibold text-center mb-6 text-gray-800">建立活動</h1>
-
-    <form @submit.prevent="submitForm" class="space-y-5">
-      <InputField label="活動名稱" v-model="form.title" required />
-      <InputField label="活動時間" type="datetime-local" v-model="form.date" required />
-      <InputField label="地點" v-model="form.location" required />
-      <TextAreaField label="描述" v-model="form.description" />
-
-      <!-- 活動封面上傳 -->
+  <div class="max-w-2xl mx-auto bg-white p-6 rounded-2xl shadow-xl">
+    <h2 class="text-2xl font-bold mb-6">建立揪團活動</h2>
+    <form @submit.prevent="handleSubmit" class="space-y-4">
       <div>
-        <label class="block mb-1 font-medium text-gray-700">活動封面</label>
-        <input type="file" @change="handleImageUpload" accept="image/*" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        <p v-if="imagePreview" class="mt-2 text-gray-600">預覽:</p>
-        <img v-if="imagePreview" :src="imagePreview" alt="活動封面" class="mt-2 w-32 h-32 object-cover rounded-lg" />
+        <label class="block text-sm font-medium mb-1">活動名稱</label>
+        <input v-model="title" type="text" class="input" placeholder="例如：週五桌遊夜" required />
       </div>
 
-      <!-- 人數限制 -->
       <div>
-        <label class="block mb-1 font-medium text-gray-700">人數限制</label>
-        <input v-model.number="form.limit" type="number" min="1" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" required />
-      </div>
-
-      <!-- 類別下拉選單 -->
-      <div>
-        <label class="block mb-1 font-medium text-gray-700">活動類別</label>
-        <select v-model="form.category" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
-          <option value="workshop">工作坊</option>
-          <option value="conference">會議</option>
-          <option value="meetup">聚會</option>
-          <option value="party">派對</option>
-          <option value="seminar">研討會</option>
+        <label class="block text-sm font-medium mb-1">活動類型</label>
+        <select v-model="category" class="input">
+          <option disabled value="">請選擇</option>
+          <option>聚餐</option>
+          <option>桌遊</option>
+          <option>旅遊</option>
+          <option>電影</option>
+          <option>戶外活動</option>
         </select>
       </div>
 
-      <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
-        ➕ 建立活動
-      </button>
-    </form>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">日期時間</label>
+          <input v-model="datetime" type="datetime-local" class="input" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">地點</label>
+          <input v-model="location" type="text" class="input" placeholder="例如：台北車站附近" required />
+        </div>
+      </div>
 
-    <div v-if="submitted" class="mt-6 p-4 bg-green-50 border border-green-300 rounded-lg">
-      <p class="text-green-700 font-medium">✅ 活動已建立！</p>
-      <pre class="text-sm text-gray-700 mt-2">{{ form }}</pre>
-    </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">人數上限</label>
+          <input v-model.number="maxParticipants" type="number" class="input" min="2" required />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">費用方式</label>
+          <select v-model="costType" class="input">
+            <option>AA制</option>
+            <option>免費</option>
+            <option>預收</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">性別限制</label>
+          <select v-model="genderLimit" class="input">
+            <option>不限</option>
+            <option>僅限男生</option>
+            <option>僅限女生</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">年齡範圍</label>
+          <input v-model="ageRange" type="text" class="input" placeholder="例如：20-35 歲" />
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-1">活動簡介</label>
+        <textarea v-model="description" class="input h-28 resize-none" placeholder="簡單介紹活動內容"></textarea>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4">
+        <button type="button" @click="resetForm" class="btn-secondary">清除</button>
+        <button type="submit" class="btn-primary">發布活動</button>
+      </div>
+    </form>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 
-const form = ref({
-  title: '',
-  date: '',
-  location: '',
-  description: '',
-  limit: 10,  // 預設人數限制
-  category: 'workshop',  // 預設選擇類別
-})
+const title = ref('')
+const category = ref('')
+const datetime = ref('')
+const location = ref('')
+const maxParticipants = ref(10)
+const costType = ref('AA制')
+const genderLimit = ref('不限')
+const ageRange = ref('')
+const description = ref('')
 
-const imagePreview = ref(null)
-const submitted = ref(false)
-
-const handleImageUpload = (event) => {
-  const file = event.target.files[0]
-  if (file) {
-    const reader = new FileReader()
-    reader.onload = () => {
-      imagePreview.value = reader.result
-    }
-    reader.readAsDataURL(file)
+function handleSubmit() {
+  const eventData = {
+    title: title.value,
+    category: category.value,
+    datetime: datetime.value,
+    location: location.value,
+    maxParticipants: maxParticipants.value,
+    costType: costType.value,
+    genderLimit: genderLimit.value,
+    ageRange: ageRange.value,
+    description: description.value,
   }
+  console.log('活動內容：', eventData)
+  alert('活動已發布！')
 }
 
-const submitForm = () => {
-  console.log('活動建立資料：', form.value)
-  submitted.value = true
+function resetForm() {
+  title.value = ''
+  category.value = ''
+  datetime.value = ''
+  location.value = ''
+  maxParticipants.value = 10
+  costType.value = 'AA制'
+  genderLimit.value = '不限'
+  ageRange.value = ''
+  description.value = ''
 }
 </script>
 
-<script>
-export default {
-  components: {
-    InputField: {
-      props: ['label', 'modelValue', 'type', 'required'],
-      emits: ['update:modelValue'],
-      template: `
-        <div>
-          <label class="block mb-1 font-medium text-gray-700">{{ label }}</label>
-          <input
-            :type="type || 'text'"
-            :required="required"
-            class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            :value="modelValue"
-            @input="$emit('update:modelValue', $event.target.value)"
-          />
-        </div>
-      `,
-    },
-    TextAreaField: {
-      props: ['label', 'modelValue'],
-      emits: ['update:modelValue'],
-      template: `
-        <div>
-          <label class="block mb-1 font-medium text-gray-700">{{ label }}</label>
-          <textarea
-            class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            rows="4"
-            :value="modelValue"
-            @input="$emit('update:modelValue', $event.target.value)"
-          ></textarea>
-        </div>
-      `,
-    },
-  },
+<style scoped>
+.input {
+  @apply w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500;
 }
-</script>
+.btn-primary {
+  @apply bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition;
+}
+.btn-secondary {
+  @apply border border-gray-300 px-4 py-2 rounded-xl text-gray-700 hover:bg-gray-100;
+}
+</style>
