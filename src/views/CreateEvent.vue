@@ -1,128 +1,218 @@
 <template>
-  <div class="max-w-2xl mx-auto bg-white p-6 rounded-2xl shadow-xl">
-    <h2 class="text-2xl font-bold mb-6">建立揪團活動</h2>
-    <form @submit.prevent="handleSubmit" class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium mb-1">活動名稱</label>
-        <input v-model="title" type="text" class="input" placeholder="例如：週五桌遊夜" required />
-      </div>
+  <div class="create-event">
+    <h2>發起活動</h2>
 
-      <div>
-        <label class="block text-sm font-medium mb-1">活動類型</label>
-        <select v-model="category" class="input">
-          <option disabled value="">請選擇</option>
-          <option>聚餐</option>
-          <option>桌遊</option>
-          <option>旅遊</option>
-          <option>電影</option>
-          <option>戶外活動</option>
-        </select>
+    <!-- 封面上傳 -->
+    <div class="form-group">
+      <label>活動封面</label>
+      <input type="file" @change="handleImageUpload" accept="image/*" />
+      <div v-if="coverImageUrl" class="preview-img">
+        <img :src="coverImageUrl" alt="封面預覽" />
       </div>
+    </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">日期時間</label>
-          <input v-model="datetime" type="datetime-local" class="input" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">地點</label>
-          <input v-model="location" type="text" class="input" placeholder="例如：台北車站附近" required />
-        </div>
-      </div>
+    <div class="form-group">
+      <label>活動名稱</label>
+      <input
+        type="text"
+        v-model="title"
+        placeholder="例如：信義區酒吧之夜"
+      />
+      <small v-if="submitted && !title" class="error">請輸入活動名稱</small>
+    </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">人數上限</label>
-          <input v-model.number="maxParticipants" type="number" class="input" min="2" required />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">費用方式</label>
-          <select v-model="costType" class="input">
-            <option>AA制</option>
-            <option>免費</option>
-            <option>預收</option>
-          </select>
-        </div>
-      </div>
+    <div class="form-group">
+      <label>活動說明</label>
+      <textarea
+        v-model="description"
+        placeholder="簡單說明活動內容..."
+      ></textarea>
+    </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">性別限制</label>
-          <select v-model="genderLimit" class="input">
-            <option>不限</option>
-            <option>僅限男生</option>
-            <option>僅限女生</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">年齡範圍</label>
-          <input v-model="ageRange" type="text" class="input" placeholder="例如：20-35 歲" />
-        </div>
-      </div>
+    <!-- 地點自動補完 -->
+    <div class="form-group">
+      <label>活動地點</label>
+      <input
+        type="text"
+        id="location"
+        ref="autocompleteInput"
+        v-model="location"
+        placeholder="例如：信義區酒吧"
+      />
+      <small v-if="submitted && !location" class="error">請輸入活動地點</small>
+    </div>
 
-      <div>
-        <label class="block text-sm font-medium mb-1">活動簡介</label>
-        <textarea v-model="description" class="input h-28 resize-none" placeholder="簡單介紹活動內容"></textarea>
-      </div>
+    <div class="form-group">
+      <label>活動時間</label>
+      <input type="datetime-local" v-model="dateTime" />
+      <small v-if="submitted && !dateTime" class="error">請選擇活動時間</small>
+    </div>
 
-      <div class="flex justify-end gap-3 pt-4">
-        <button type="button" @click="resetForm" class="btn-secondary">清除</button>
-        <button type="submit" class="btn-primary">發布活動</button>
-      </div>
-    </form>
+    <div class="form-group">
+      <label>活動權限</label>
+      <select v-model="visibility">
+        <option value="public">公開活動</option>
+        <option value="invite">只限邀請</option>
+      </select>
+    </div>
+
+    <div class="actions">
+      <button @click="saveDraft">儲存草稿</button>
+      <button @click="submitEvent">建立活動</button>
+    </div>
   </div>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script>
+export default {
+  name: "CreateEvent",
+  data() {
+    return {
+      title: "",
+      description: "",
+      location: "",
+      dateTime: "",
+      visibility: "public",
+      coverImageUrl: "",
+      submitted: false,
+    };
+  },
+  mounted() {
+    this.initGoogleAutocomplete();
+    this.loadDraft();
+  },
+  methods: {
+    handleImageUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
 
-const title = ref('')
-const category = ref('')
-const datetime = ref('')
-const location = ref('')
-const maxParticipants = ref(10)
-const costType = ref('AA制')
-const genderLimit = ref('不限')
-const ageRange = ref('')
-const description = ref('')
+      const validTypes = ["image/jpeg", "image/png"];
+      const maxSize = 2 * 1024 * 1024; // 2MB
 
-function handleSubmit() {
-  const eventData = {
-    title: title.value,
-    category: category.value,
-    datetime: datetime.value,
-    location: location.value,
-    maxParticipants: maxParticipants.value,
-    costType: costType.value,
-    genderLimit: genderLimit.value,
-    ageRange: ageRange.value,
-    description: description.value,
-  }
-  console.log('活動內容：', eventData)
-  alert('活動已發布！')
-}
+      if (!validTypes.includes(file.type)) {
+        alert("僅接受 JPG 或 PNG 格式圖片");
+        return;
+      }
 
-function resetForm() {
-  title.value = ''
-  category.value = ''
-  datetime.value = ''
-  location.value = ''
-  maxParticipants.value = 10
-  costType.value = 'AA制'
-  genderLimit.value = '不限'
-  ageRange.value = ''
-  description.value = ''
-}
+      if (file.size > maxSize) {
+        alert("圖片大小不能超過 2MB");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.coverImageUrl = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    },
+    initGoogleAutocomplete() {
+      const input = this.$refs.autocompleteInput;
+      if (window.google && window.google.maps) {
+        const autocomplete = new window.google.maps.places.Autocomplete(input, {
+          types: ["geocode"],
+        });
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          this.location = place.formatted_address;
+        });
+      } else {
+        console.warn("Google Maps API 尚未載入");
+      }
+    },
+    saveDraft() {
+      const data = {
+        title: this.title,
+        description: this.description,
+        location: this.location,
+        dateTime: this.dateTime,
+        visibility: this.visibility,
+        coverImageUrl: this.coverImageUrl,
+      };
+      localStorage.setItem("eventDraft", JSON.stringify(data));
+      alert("草稿已儲存！");
+    },
+    loadDraft() {
+      const draft = localStorage.getItem("eventDraft");
+      if (draft) {
+        Object.assign(this, JSON.parse(draft));
+      }
+    },
+    submitEvent() {
+      this.submitted = true;
+      if (!this.title || !this.location || !this.dateTime) {
+        alert("請完整填寫必要欄位");
+        return;
+      }
+      alert("活動已建立！");
+      localStorage.removeItem("eventDraft");
+      // 送出資料邏輯可在這裡串接 API
+    },
+  },
+};
 </script>
 
 <style scoped>
-.input {
-  @apply w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500;
+.create-event {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
-.btn-primary {
-  @apply bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition;
+.create-event h2 {
+  text-align: center;
+  margin-bottom: 1.5rem;
 }
-.btn-secondary {
-  @apply border border-gray-300 px-4 py-2 rounded-xl text-gray-700 hover:bg-gray-100;
+.form-group {
+  margin-bottom: 1.2rem;
+}
+.form-group label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.4rem;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+.preview-img img {
+  max-width: 100%;
+  margin-top: 0.8rem;
+  border-radius: 8px;
+}
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.actions button {
+  flex: 1;
+  padding: 0.8rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.actions button:first-child {
+  background: #ddd;
+}
+.actions button:last-child {
+  background: #4f46e5;
+  color: white;
+}
+.actions button:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+.error {
+  color: red;
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
+  display: block;
 }
 </style>
